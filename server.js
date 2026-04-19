@@ -18,49 +18,76 @@ function fechaActual() {
   return new Date().toLocaleString("es-MX");
 }
 
+function nextId(coleccion) {
+  const items = db.get(coleccion).value();
+  if (items.length === 0) return 1;
+  return Math.max(...items.map(i => i.id)) + 1;
+}
+
 app.post("/api/register", (req, res) => {
   const { username, password, rol } = req.body;
   if (!username || !password) return res.status(400).json({ error: "Faltan campos" });
 
-  db.run("INSERT INTO usuarios (username, password, rol) VALUES (?, ?, ?)",
-    [username, password, rol || "usuario"],
-    function(err) {
-      if (err) return res.status(409).json({ error: "El usuario ya existe" });
-      res.json({ ok: true });
-    }
-  );
+  const existe = db.get("usuarios").find({ username }).value();
+  if (existe) return res.status(409).json({ error: "El usuario ya existe" });
+
+  const nuevoUsuario = {
+    id: nextId("usuarios"),
+    username,
+    password,
+    rol: rol || "usuario",
+    creado_en: fechaActual()
+  };
+
+  db.get("usuarios").push(nuevoUsuario).write();
+  res.json({ ok: true });
 });
 
 app.post("/api/login", (req, res) => {
   const { username, password } = req.body;
   const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
 
-  db.get("SELECT * FROM usuarios WHERE username = ?", [username], (err, user) => {
-    if (!user || user.password !== password) {
-      const motivo = !user ? "Usuario no existe" : "Contrasena incorrecta";
-      db.run("INSERT INTO bitacora_fallido (usuario_intento, fecha_hora, ip, motivo) VALUES (?, ?, ?, ?)",
-        [username || "desconocido", fechaActual(), ip, motivo]);
-      return res.status(401).json({ error: "Credenciales incorrectas" });
-    }
+  const user = db.get("usuarios").find({ username }).value();
 
-    const sessionId = uuidv4();
-    req.session.usuario = user.username;
-    req.session.rol = user.rol;
-    req.session.sessionId = sessionId;
+  if (!user || user.password !== password) {
+    const motivo = !user ? "Usuario no existe" : "Contrasena incorrecta";
+    db.get("bitacora_fallido").push({
+      id: nextId("bitacora_fallido"),
+      usuario_intento: username || "desconocido",
+      fecha_hora: fechaActual(),
+      ip,
+      motivo
+    }).write();
+    return res.status(401).json({ error: "Credenciales incorrectas" });
+  }
 
-    db.run("INSERT INTO bitacora_correcto (usuario, fecha_hora, ip, session_id) VALUES (?, ?, ?, ?)",
-      [user.username, fechaActual(), ip, sessionId]);
+  const sessionId = uuidv4();
+  req.session.usuario = user.username;
+  req.session.rol = user.rol;
+  req.session.sessionId = sessionId;
 
-    res.json({ ok: true, rol: user.rol, sessionId });
-  });
+  db.get("bitacora_correcto").push({
+    id: nextId("bitacora_correcto"),
+    usuario: user.username,
+    fecha_hora: fechaActual(),
+    ip,
+    session_id: sessionId
+  }).write();
+
+  res.json({ ok: true, rol: user.rol, sessionId });
 });
 
 app.post("/api/logout", (req, res) => {
   if (!req.session.usuario) return res.status(401).json({ error: "Sin sesion" });
   const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
 
-  db.run("INSERT INTO bitacora_cierre (usuario, fecha_hora, ip, session_id) VALUES (?, ?, ?, ?)",
-    [req.session.usuario, fechaActual(), ip, req.session.sessionId]);
+  db.get("bitacora_cierre").push({
+    id: nextId("bitacora_cierre"),
+    usuario: req.session.usuario,
+    fecha_hora: fechaActual(),
+    ip,
+    session_id: req.session.sessionId
+  }).write();
 
   req.session.destroy();
   res.json({ ok: true });
@@ -79,26 +106,26 @@ app.get("/api/bitacoras/:tipo", (req, res) => {
   if (!req.session.usuario || req.session.rol !== "admin") {
     return res.status(403).json({ error: "Acceso denegado" });
   }
-  const tablas = {
+  const colecciones = {
     correcto: "bitacora_correcto",
     fallido:  "bitacora_fallido",
     cierre:   "bitacora_cierre"
   };
-  const tabla = tablas[req.params.tipo];
-  if (!tabla) return res.status(400).json({ error: "Tipo invalido" });
+  const col = colecciones[req.params.tipo];
+  if (!col) return res.status(400).json({ error: "Tipo invalido" });
 
-  db.all("SELECT * FROM " + tabla + " ORDER BY id DESC", [], (err, rows) => {
-    res.json(rows || []);
-  });
+  const datos = db.get(col).value().slice().reverse();
+  res.json(datos);
 });
 
 app.get("/api/usuarios", (req, res) => {
   if (!req.session.usuario || req.session.rol !== "admin") {
     return res.status(403).json({ error: "Acceso denegado" });
   }
-  db.all("SELECT id, username, rol, creado_en FROM usuarios", [], (err, rows) => {
-    res.json(rows || []);
-  });
+  const usuarios = db.get("usuarios").map(u => ({
+    id: u.id, username: u.username, rol: u.rol, creado_en: u.creado_en
+  })).value();
+  res.json(usuarios);
 });
 
 app.listen(3000, () => console.log("Servidor en puerto 3000"));
