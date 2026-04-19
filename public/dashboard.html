@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Panel Usuario</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container wide">
+    <div id="mensaje"></div>
+    <h2>Panel de Usuario</h2>
+    <p id="bienvenida"></p>
+    <div class="session-box">
+      <strong>Tu Session ID:</strong>
+      <span id="session-id-valor"></span>
+      <button onclick="copiarSessionId()">Copiar</button>
+    </div>
+    <p style="margin-top:10px; font-size:13px;">
+      Puedes copiar este ID e intentar abrirlo en otro navegador para probar el robo de sesion.
+    </p>
+    <button onclick="logout()">Cerrar Sesion</button>
+  </div>
+  <script src="app.js"></script>
+  <script>
+    verificarSesion("usuario").then(data => {
+      if (!data) return;
+      document.getElementById("bienvenida").textContent = "Usuario: " + data.usuario;
+      document.getElementById("session-id-valor").textContent = data.sessionId;
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Registro</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <h2>Registrar Usuario</h2>
+    <div id="mensaje"></div>
+    <input type="text" id="username" placeholder="Usuario">
+    <input type="password" id="password" placeholder="Contrasena">
+    <select id="rol">
+      <option value="usuario">Usuario</option>
+      <option value="admin">Administrador</option>
+    </select>
+    <button onclick="register()">Registrar</button>
+    <a href="/">Volver al Login</a>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

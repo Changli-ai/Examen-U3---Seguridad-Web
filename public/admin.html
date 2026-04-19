@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Panel Admin</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container wide">
+    <div id="mensaje"></div>
+    <h2>Panel Administrador</h2>
+    <div class="session-box">
+      <strong>Tu Session ID:</strong>
+      <span id="session-id-valor"></span>
+      <button onclick="copiarSessionId()">Copiar</button>
+    </div>
+    <button onclick="logout()">Cerrar Sesion</button>
+
+    <div class="tabs">
+      <button onclick="mostrarTab('correcto')">Acceso Correcto</button>
+      <button onclick="mostrarTab('fallido')">Acceso Fallido</button>
+      <button onclick="mostrarTab('cierre')">Cierre de Sesion</button>
+      <button onclick="mostrarTab('usuarios')">Usuarios</button>
+    </div>
+
+    <div id="panel-correcto" class="tab-panel">
+      <h3>Bitacora: Acceso Correcto</h3>
+      <table><thead><tr><th>ID</th><th>Usuario</th><th>Fecha</th><th>IP</th><th>Session ID</th></tr></thead>
+      <tbody id="tb-correcto"></tbody></table>
+    </div>
+    <div id="panel-fallido" class="tab-panel" style="display:none">
+      <h3>Bitacora: Acceso Fallido</h3>
+      <table><thead><tr><th>ID</th><th>Usuario</th><th>Fecha</th><th>IP</th><th>Motivo</th></tr></thead>
+      <tbody id="tb-fallido"></tbody></table>
+    </div>
+    <div id="panel-cierre" class="tab-panel" style="display:none">
+      <h3>Bitacora: Cierre de Sesion</h3>
+      <table><thead><tr><th>ID</th><th>Usuario</th><th>Fecha</th><th>IP</th><th>Session ID</th></tr></thead>
+      <tbody id="tb-cierre"></tbody></table>
+    </div>
+    <div id="panel-usuarios" class="tab-panel" style="display:none">
+      <h3>Usuarios Registrados</h3>
+      <table><thead><tr><th>ID</th><th>Username</th><th>Rol</th><th>Creado</th></tr></thead>
+      <tbody id="tb-usuarios"></tbody></table>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    verificarSesion("admin").then(data => {
+      if (!data) return;
+      document.getElementById("session-id-valor").textContent = data.sessionId;
+      cargarBitacora("correcto", "tb-correcto");
+    });
+
+    async function mostrarTab(tipo) {
+      document.querySelectorAll(".tab-panel").forEach(p => p.style.display = "none");
+      document.getElementById("panel-" + tipo).style.display = "block";
+      if (tipo === "usuarios") {
+        const res = await fetch("/api/usuarios");
+        const datos = await res.json();
+        const tbody = document.getElementById("tb-usuarios");
+        tbody.innerHTML = "";
+        datos.forEach(u => {
+          tbody.innerHTML += "<tr><td>" + u.id + "</td><td>" + u.username + "</td><td>" + u.rol + "</td><td>" + u.creado_en + "</td></tr>";
+        });
+      } else {
+        cargarBitacora(tipo, "tb-" + tipo);
+      }
+    }
+  </script>
+</body>
+</html>
