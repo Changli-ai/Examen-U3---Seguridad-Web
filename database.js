@@ -1,3 +1,10 @@
+const fs = require("fs");
+const path = require("path");
+
+if (!fs.existsSync("./bitacoras")) {
+  fs.mkdirSync("./bitacoras");
+}
+
 const Database = require("better-sqlite3");
 
 const db = new Database("./bitacoras/principal.db");
